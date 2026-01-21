@@ -1,6 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { User } from '../types';
+
+declare const google: any;
 
 interface HeaderProps {
   user: User | null;
@@ -11,22 +13,84 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, isDarkMode, onToggleDarkMode }) => {
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const [loginData, setLoginData] = useState({ name: '', email: '' });
+  const [showTroubleshooter, setShowTroubleshooter] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const CLIENT_ID = "160933920619-isrmcg104ni73620h5evn8ke39hb5r21.apps.googleusercontent.com";
 
-  const handleSimulatedLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginData.name || !loginData.email) return;
-    
-    onLogin({
-      name: loginData.name,
-      email: loginData.email.toLowerCase(),
-      picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(loginData.name)}&background=0D8ABC&color=fff`
-    });
-    setShowLoginModal(false);
-    setLoginData({ name: '', email: '' });
-    setShowInfoModal(true); // Show instructions after simulated login
+  useEffect(() => {
+    let timer: number;
+
+    const handleCredentialResponse = (response: any) => {
+      try {
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+        const payload = JSON.parse(jsonPayload);
+        
+        onLogin({
+          name: payload.name,
+          email: payload.email,
+          picture: payload.picture,
+        });
+      } catch (error) {
+        console.error("Error decoding Google login response:", error);
+      }
+    };
+
+    const initializeGoogle = () => {
+      if (typeof google !== 'undefined') {
+        // Always initialize with the current client ID
+        google.accounts.id.initialize({
+          client_id: CLIENT_ID,
+          callback: handleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+          use_fedcm_for_prompt: false, 
+        });
+
+        if (!user) {
+          const btnParent = document.getElementById("googleBtn");
+          if (btnParent) {
+            google.accounts.id.renderButton(
+              btnParent,
+              { 
+                theme: isDarkMode ? "filled_black" : "outline", 
+                size: "large",
+                shape: "pill",
+                text: "signin_with",
+                width: "240"
+              }
+            );
+          }
+          // Only prompt One Tap if no user is logged in
+          google.accounts.id.prompt();
+        } else {
+          // If a user is logged in, ensure any pending One Tap prompts are dismissed
+          google.accounts.id.cancel();
+        }
+      }
+    };
+
+    // Small delay to ensure the GSI script is fully ready in the global scope
+    timer = window.setTimeout(initializeGoogle, 1000);
+
+    return () => {
+      window.clearTimeout(timer);
+      if (typeof google !== 'undefined') {
+        google.accounts.id.cancel(); // Cleanup on unmount or user change
+      }
+    };
+  }, [user, onLogin, isDarkMode]);
+
+  const currentOrigin = window.location.origin;
+
+  const copyOrigin = () => {
+    navigator.clipboard.writeText(currentOrigin);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -44,6 +108,16 @@ const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, isDarkMode, on
             </div>
             
             <div className="flex items-center gap-3 sm:gap-4">
+              {!user && (
+                <button 
+                  onClick={() => setShowTroubleshooter(true)}
+                  className="text-[10px] font-bold text-slate-400 hover:text-blue-500 uppercase tracking-tighter transition-colors flex items-center gap-1"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Login Help?
+                </button>
+              )}
+
               <button 
                 onClick={onToggleDarkMode}
                 className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all border border-transparent dark:border-slate-700"
@@ -57,23 +131,15 @@ const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, isDarkMode, on
               </button>
 
               {!user ? (
-                <button 
-                  onClick={() => setShowLoginModal(true)}
-                  className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12.48 10.92v3.28h7.84c-.24 1.84-2.12 5.36-7.84 5.36-4.8 0-8.68-3.92-8.68-8.72s3.88-8.72 8.68-8.72c2.72 0 4.56 1.16 5.6 2.16l2.56-2.48c-1.64-1.56-4.2-2.52-8.16-2.52-6.64 0-12 5.36-12 12s5.36 12 12 12c6.92 0 11.52-4.88 11.52-11.72 0-.8-.08-1.4-.2-2.04h-11.32z"/>
-                  </svg>
-                  Sign in
-                </button>
+                <div id="googleBtn" className="min-w-[240px] h-10 flex items-center justify-end overflow-hidden"></div>
               ) : (
-                <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 p-1 pr-3 rounded-full border border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 p-1 pr-3 rounded-full border border-slate-100 dark:border-slate-700 animate-in fade-in slide-in-from-right-2 duration-300">
                   <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full shadow-sm" />
                   <div className="hidden sm:flex flex-col text-right">
                     <span className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight truncate max-w-[120px]">{user.name}</span>
                     <button 
                       onClick={onLogout}
-                      className="text-[10px] text-slate-400 hover:text-red-500 font-bold uppercase tracking-tighter text-left"
+                      className="text-[10px] text-slate-400 hover:text-red-500 font-bold uppercase tracking-tighter text-left transition-colors"
                     >
                       Logout
                     </button>
@@ -85,104 +151,61 @@ const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, isDarkMode, on
         </div>
       </nav>
 
-      {/* Login Instruction Modal */}
-      {showInfoModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-blue-500/30 overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="bg-blue-500/10 p-3 rounded-2xl">
-                  <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white">Setup Production Auth</h3>
-                  <p className="text-sm text-slate-500">To enable real Google Login, follow these steps:</p>
-                </div>
-              </div>
-
-              <div className="space-y-4 text-sm text-slate-600 dark:text-slate-400">
-                <div className="flex gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">1</span>
-                  <p>Visit the <a href="https://console.cloud.google.com/" target="_blank" className="text-blue-500 font-bold hover:underline">Google Cloud Console</a>.</p>
-                </div>
-                <div className="flex gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">2</span>
-                  <p>Create a project and navigate to <b>APIs & Services &gt; Credentials</b> to create an <b>OAuth 2.0 Client ID</b>.</p>
-                </div>
-                <div className="flex gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">3</span>
-                  <p>Add your application domain to <b>Authorized JavaScript Origins</b>.</p>
-                </div>
-                <div className="flex gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">4</span>
-                  <p>Replace the placeholder <code>client_id</code> in <code>Header.tsx</code> with your new ID.</p>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => setShowInfoModal(false)}
-                className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-4 rounded-2xl mt-8 hover:opacity-90 transition-opacity"
-              >
-                Got it, let's stack!
+      {/* Troubleshooter Modal */}
+      {showTroubleshooter && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden p-8 animate-in zoom-in duration-200">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">Fixing Origin Mismatch</h3>
+              <button onClick={() => setShowTroubleshooter(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Simulated Login Modal */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden transform transition-all">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white">Sign In</h3>
-                  <p className="text-sm text-slate-500">Access your private silver stack</p>
-                </div>
-                <button onClick={() => setShowLoginModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+            
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              Google requires you to whitelist the exact "Origin" of this preview in your Cloud Console settings.
+            </p>
+            
+            <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-2xl mb-6 relative group">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Your Current Origin:</p>
+              <div className="flex items-center justify-between gap-4">
+                <code className="text-sm font-mono text-blue-600 dark:text-blue-400 break-all font-bold">
+                  {currentOrigin}
+                </code>
+                <button 
+                  onClick={copyOrigin}
+                  className={`shrink-0 p-2 rounded-lg transition-all ${copied ? 'bg-green-500 text-white' : 'bg-white dark:bg-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-600'}`}
+                >
+                  {copied ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                  )}
                 </button>
               </div>
-
-              <form onSubmit={handleSimulatedLogin} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Name</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={loginData.name}
-                    onChange={e => setLoginData({...loginData, name: e.target.value})}
-                    placeholder="John Doe"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Email Address</label>
-                  <input 
-                    type="email" 
-                    required
-                    value={loginData.email}
-                    onChange={e => setLoginData({...loginData, email: e.target.value})}
-                    placeholder="john@example.com"
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none transition-all"
-                  />
-                </div>
-                <button 
-                  type="submit"
-                  className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-4 rounded-xl mt-4 hover:opacity-90 transition-opacity"
-                >
-                  Continue to Stack
-                </button>
-                <p className="text-[10px] text-center text-slate-400 uppercase tracking-tighter mt-4">
-                  Demo Mode: Data is saved locally using your email as a key.
-                </p>
-              </form>
             </div>
+
+            <div className="space-y-4 mb-8">
+              <div className="flex gap-3">
+                <div className="w-6 h-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full flex items-center justify-center text-xs font-bold shrink-0">1</div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">Open your <b>Client ID</b> in Google Cloud Console.</p>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-6 h-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full flex items-center justify-center text-xs font-bold shrink-0">2</div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">Add the URL above to <b>Authorized JavaScript origins</b>.</p>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-6 h-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full flex items-center justify-center text-xs font-bold shrink-0">3</div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">Also add: <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">https://aistudio.google.com</code></p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setShowTroubleshooter(false)}
+              className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-3 rounded-xl hover:opacity-90 transition-opacity"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
