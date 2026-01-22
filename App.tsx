@@ -120,7 +120,7 @@ const App: React.FC = () => {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         {!user && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-6 mb-8 flex items-center gap-4 text-blue-800 dark:text-blue-300 transition-colors">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-6 mb-8 flex items-center gap-4 text-blue-800 dark:text-blue-300 transition-colors animate-in slide-in-from-top duration-500">
             <svg className="w-6 h-6 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -167,7 +167,7 @@ const App: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <AddItemForm onAdd={handleAddItem} />
+            <AddItemForm onAdd={handleAddItem} user={user} />
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-colors">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/30">

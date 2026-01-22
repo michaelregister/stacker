@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { parseSilverInput } from '../services/geminiService';
-import { SilverItem } from '../types';
+import { SilverItem, User } from '../types';
 
 const SUGGESTIONS = [
   "10 American Silver Eagles",
@@ -18,9 +18,10 @@ const SUGGESTIONS = [
 
 interface AddItemFormProps {
   onAdd: (item: SilverItem) => void;
+  user: User | null;
 }
 
-const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd }) => {
+const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd, user }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -64,7 +65,7 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !user) return;
 
     setIsLoading(true);
     setShowSuggestions(false);
@@ -93,16 +94,35 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd }) => {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 mb-8 transition-colors">
-        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 mb-8 transition-all relative overflow-hidden">
+        
+        {/* Logged Out Overlay */}
+        {!user && (
+          <div className="absolute inset-0 z-10 bg-white/60 dark:bg-slate-900/80 backdrop-blur-[2px] flex items-center justify-center p-6 text-center animate-in fade-in duration-500">
+            <div className="max-w-xs">
+              <div className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h4 className="text-slate-900 dark:text-white font-bold text-sm mb-1">Add Items Locked</h4>
+              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
+                Please <span className="font-bold text-slate-900 dark:text-slate-100">Sign in with Google</span> at the top to start building your silver stack.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <label className={`block text-sm font-semibold mb-3 transition-colors ${!user ? 'text-slate-300 dark:text-slate-700' : 'text-slate-700 dark:text-slate-300'}`}>
           Add Silver to Stack
         </label>
+        
         <div className="flex flex-col sm:flex-row gap-3 relative">
           <div className="flex-1 relative">
             <input
               type="text"
               value={input}
-              onFocus={() => setShowSuggestions(true)}
+              onFocus={() => user && setShowSuggestions(true)}
               onChange={(e) => {
                 setInput(e.target.value);
                 setShowSuggestions(true);
@@ -110,12 +130,12 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd }) => {
               }}
               onKeyDown={handleKeyDown}
               placeholder="e.g., '25 Silver Maple Leafs' or '5oz Silver Bar'"
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-600 transition-all text-slate-700 dark:text-slate-200"
-              disabled={isLoading}
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-600 transition-all text-slate-700 dark:text-slate-200 disabled:opacity-50"
+              disabled={isLoading || !user}
             />
             
             {/* Auto-complete Dropdown */}
-            {showSuggestions && filteredSuggestions.length > 0 && (
+            {showSuggestions && filteredSuggestions.length > 0 && user && (
               <div className="absolute left-0 right-0 top-full mt-2 z-[60] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                 {filteredSuggestions.map((suggestion, index) => (
                   <button
@@ -137,8 +157,8 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd }) => {
           
           <button
             type="submit"
-            disabled={isLoading || !input.trim()}
-            className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold px-6 py-3 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+            disabled={isLoading || !input.trim() || !user}
+            className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold px-6 py-3 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 disabled:bg-slate-300 dark:disabled:bg-slate-800 disabled:cursor-not-allowed transition-colors whitespace-nowrap shadow-sm"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
@@ -151,7 +171,7 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd }) => {
             ) : "Add Item"}
           </button>
         </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
+        <p className={`text-xs mt-3 transition-colors ${!user ? 'text-slate-300 dark:text-slate-700' : 'text-slate-400 dark:text-slate-500'}`}>
           Tip: Our AI automatically recognizes coins, bars, rounds, and junk silver weights.
         </p>
       </form>
