@@ -8,6 +8,16 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3001,
         host: '0.0.0.0',
+        proxy: {
+          '/api': {
+            target: 'http://localhost:3001', // Express server port
+            changeOrigin: true,
+            secure: false,
+            // rewrite: (path) => path.replace(/^\/api/, '')
+            // ^ Only use the line above if your Express routes
+            //   do NOT start with /api (but yours do, so keep it commented out)
+          },
+        }
       },
       plugins: [react()],
       define: {
@@ -18,6 +28,6 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
     };
 });
