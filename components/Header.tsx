@@ -21,7 +21,7 @@ const Header: React.FC<HeaderProps> = ({ isDarkMode, onToggleDarkMode, user, onL
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
-            <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight">SilverStacker<span className="text-slate-400">Pro</span></span>
+            <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Stacker<span className="text-slate-400">Pro</span></span>
           </div>
           
           <div className="flex items-center gap-3 sm:gap-4">

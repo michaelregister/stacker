@@ -1,7 +1,10 @@
 
-export interface SilverItem {
+export type MetalType = 'silver' | 'gold';
+
+export interface MetalItem {
   id: string;
   name: string;
+  type: MetalType;
   quantity: number;
   ozPerUnit: number;
   totalOz: number;

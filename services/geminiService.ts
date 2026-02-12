@@ -38,10 +38,10 @@ export async function parseSilverInput(input: string): Promise<ParsedItem> {
   }
 }
 
-export async function fetchSilverSpotPrice(): Promise<SpotPriceData> {
+export async function fetchSpotPrice(metal: 'silver' | 'gold'): Promise<SpotPriceData> {
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: "What is the current silver spot price per troy ounce in USD right now?",
+    contents: `What is the current ${metal} spot price per troy ounce in USD right now?`,
     config: {
       tools: [{ googleSearch: {} }]
     }
@@ -59,7 +59,7 @@ export async function fetchSilverSpotPrice(): Promise<SpotPriceData> {
   // or just rely on a follow-up parsing step.
   const priceExtractor = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `Extract ONLY the current silver spot price as a number from this text: "${text}". If multiple are mentioned, pick the most recent/accurate one.`,
+    contents: `Extract ONLY the current ${metal} spot price as a number from this text: "${text}". If multiple are mentioned, pick the most recent/accurate one.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
