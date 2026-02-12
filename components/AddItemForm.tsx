@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { parseSilverInput } from '../services/geminiService';
-import { SilverItem, User } from '../types';
+import { MetalItem, User, MetalType } from '../types';
 
 const SUGGESTIONS = [
   "10 American Silver Eagles",
@@ -13,16 +13,19 @@ const SUGGESTIONS = [
   "1oz Austrian Philharmonic",
   "10oz Valcambi Silver Bar",
   "Roll of Silver Dimes (Junk)",
-  "100g PAMP Suisse Silver"
+  "100g PAMP Suisse Silver",
+  "1 American Gold Eagle",
+  "1oz Gold Bar"
 ];
 
 interface AddItemFormProps {
-  onAdd: (item: SilverItem) => void;
+  onAdd: (item: MetalItem) => void;
   user: User | null;
 }
 
 const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd, user }) => {
   const [input, setInput] = useState('');
+  const [metalType, setMetalType] = useState<MetalType>('silver');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -71,9 +74,10 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd, user }) => {
     setShowSuggestions(false);
     try {
       const parsed = await parseSilverInput(input);
-      const newItem: SilverItem = {
+      const newItem: MetalItem = {
         id: crypto.randomUUID(),
         name: parsed.name,
+        type: metalType,
         quantity: parsed.quantity,
         ozPerUnit: parsed.ozPerUnit,
         totalOz: parsed.quantity * parsed.ozPerUnit,
@@ -107,14 +111,14 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd, user }) => {
               </div>
               <h4 className="text-slate-900 dark:text-white font-bold text-sm mb-1">Add Items Locked</h4>
               <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
-                Please <span className="font-bold text-slate-900 dark:text-slate-100">Sign in with Google</span> at the top to start building your silver stack.
+                Please <span className="font-bold text-slate-900 dark:text-slate-100">Sign in with Google</span> at the top to start building your stack.
               </p>
             </div>
           </div>
         )}
 
         <label className={`block text-sm font-semibold mb-3 transition-colors ${!user ? 'text-slate-300 dark:text-slate-700' : 'text-slate-700 dark:text-slate-300'}`}>
-          Add Silver to Stack
+          Add Item to Stack
         </label>
         
         <div className="flex flex-col sm:flex-row gap-3 relative">
@@ -129,7 +133,7 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd, user }) => {
                 setSelectedIndex(-1);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="e.g., '25 Silver Maple Leafs' or '5oz Silver Bar'"
+              placeholder="e.g., '25 Silver Maple Leafs' or '5oz Gold Bar'"
               className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-600 transition-all text-slate-700 dark:text-slate-200 disabled:opacity-50"
               disabled={isLoading || !user}
             />
@@ -155,6 +159,16 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ onAdd, user }) => {
             )}
           </div>
           
+          <select 
+            value={metalType} 
+            onChange={(e) => setMetalType(e.target.value as MetalType)}
+            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-600 transition-all text-slate-700 dark:text-slate-200 disabled:opacity-50"
+            disabled={isLoading || !user}
+          >
+            <option value="silver">Silver</option>
+            <option value="gold">Gold</option>
+          </select>
+
           <button
             type="submit"
             disabled={isLoading || !input.trim() || !user}
