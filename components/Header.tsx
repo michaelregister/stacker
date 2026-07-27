@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { User } from 'firebase/auth';
+import logo from '../logo.png';
 
 interface HeaderProps {
   isDarkMode: boolean;
@@ -16,14 +17,10 @@ const Header: React.FC<HeaderProps> = ({ isDarkMode, onToggleDarkMode, user, onL
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center gap-2">
-            <div className="bg-slate-900 dark:bg-slate-100 p-2 rounded-lg shadow-sm">
-              <svg className="w-6 h-6 text-white dark:text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-            </div>
+            <img src={logo} alt="Stacker Pro Logo" className="w-10 h-10 rounded-lg shadow-sm" />
             <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Stacker<span className="text-slate-400">Pro</span></span>
           </div>
-          
+
           <div className="flex items-center gap-3 sm:gap-4">
             {user ? (
               <>
@@ -43,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({ isDarkMode, onToggleDarkMode, user, onL
                 Login
               </button>
             )}
-            <button 
+            <button
               onClick={onToggleDarkMode}
               className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all border border-transparent dark:border-slate-700"
               aria-label="Toggle dark mode"
