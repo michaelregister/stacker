@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
           '@': path.resolve(__dirname, '.'),
         }
       },
+      publicDir: 'static',
       build: {
         outDir: 'public',
       },
