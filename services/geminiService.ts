@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ParsedItem, SpotPriceData } from "../types";
+import { ParsedItem } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -36,48 +36,4 @@ export async function parseSilverInput(input: string): Promise<ParsedItem> {
   } catch (e) {
     throw new Error("Failed to parse AI response for silver item.");
   }
-}
-
-export async function fetchSpotPrice(metal: 'silver' | 'gold'): Promise<SpotPriceData> {
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `What is the current ${metal} spot price per troy ounce in USD right now?`,
-    config: {
-      tools: [{ googleSearch: {} }]
-    }
-  });
-
-  const text = response.text;
-  const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
-    ?.map((chunk: any) => ({
-      title: chunk.web?.title || "Search Source",
-      uri: chunk.web?.uri || ""
-    }))
-    .filter((s: any) => s.uri) || [];
-
-  // Extract numerical price from the AI text using a second pass if needed, 
-  // or just rely on a follow-up parsing step.
-  const priceExtractor = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Extract ONLY the current ${metal} spot price as a number from this text: "${text}". If multiple are mentioned, pick the most recent/accurate one.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          price: { type: Type.NUMBER }
-        },
-        required: ["price"]
-      }
-    }
-  });
-
-  const priceResult = JSON.parse(priceExtractor.text.trim());
-
-  return {
-    price: priceResult.price,
-    currency: "USD",
-    lastUpdated: new Date().toISOString(),
-    sources
-  };
 }

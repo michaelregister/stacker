@@ -13,11 +13,15 @@ export interface MetalItem {
   addedAt: number;
 }
 
+// MetalItem plus its live value (totalOz * current spot price), computed at render time
+export interface MetalItemWithValue extends MetalItem {
+  currentValue: number;
+}
+
 export interface SpotPriceData {
   price: number;
   currency: string;
   lastUpdated: string;
-  sources: { title: string; uri: string }[];
 }
 
 export interface ParsedItem {

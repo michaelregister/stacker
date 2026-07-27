@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import admin from 'firebase-admin';
-import serviceAccount from './service-account-key.json' assert { type: "json" };
+import serviceAccount from './service-account-key.json' with { type: "json" };
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
@@ -9,7 +9,7 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const app = express();
-const PORT = 3001;
+const PORT = 3002;
 
 app.use(cors());
 app.use(express.json());

@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
         proxy: {
           '/api': {
-            target: 'http://localhost:3001', // Express server port
+            target: 'http://localhost:3002', // Express server port
             changeOrigin: true,
             secure: false,
             // rewrite: (path) => path.replace(/^\/api/, '')
