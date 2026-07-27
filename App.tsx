@@ -5,8 +5,8 @@ import Header from './components/Header';
 import StatCard from './components/StatCard';
 import AddItemForm from './components/AddItemForm';
 import Login from './components/Login';
-import { fetchSpotPrice } from './services/geminiService';
-import { MetalItem, SpotPriceData, MetalType } from './types';
+import { fetchSpotPrice } from './services/spotPriceService';
+import { MetalItem, MetalItemWithValue, SpotPriceData, MetalType } from './types';
 import { auth, googleProvider } from './services/firebase';
 import { signInWithPopup, signOut, User } from 'firebase/auth';
 
@@ -48,11 +48,18 @@ const App: React.FC = () => {
   const [previousValue, setPreviousValue] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof MetalItem; direction: 'ascending' | 'descending' } | null>({ key: 'addedAt', direction: 'descending' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof MetalItemWithValue; direction: 'ascending' | 'descending' } | null>({ key: 'addedAt', direction: 'descending' });
   const [chartDistribution, setChartDistribution] = useState<'category' | 'type'>('category');
 
+  const stackWithValue = useMemo<MetalItemWithValue[]>(() => {
+    return stack.map(item => ({
+      ...item,
+      currentValue: item.totalOz * (spotPrices[item.type]?.price || 0)
+    }));
+  }, [stack, spotPrices]);
+
    const sortedStack = useMemo(() => {
-    let sortableItems = [...stack];
+    let sortableItems = [...stackWithValue];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         if (a[sortConfig.key] < b[sortConfig.key]) {
@@ -82,7 +89,7 @@ const App: React.FC = () => {
     }
   }, [currentPage, totalPages]);
 
-  const requestSort = (key: keyof MetalItem) => {
+  const requestSort = (key: keyof MetalItemWithValue) => {
     let direction: 'ascending' | 'descending' = 'ascending';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
@@ -111,11 +118,8 @@ const App: React.FC = () => {
   }, [stack]);
 
   const totalValue = useMemo(() => {
-    return stack.reduce((acc, item) => {
-      const price = spotPrices[item.type]?.price || 0;
-      return acc + (item.totalOz * price);
-    }, 0);
-  }, [stack, spotPrices]);
+    return stackWithValue.reduce((acc, item) => acc + item.currentValue, 0);
+  }, [stackWithValue]);
 
   // Sync dark mode class
   useEffect(() => {
@@ -316,7 +320,7 @@ const App: React.FC = () => {
                     key={type}
                     label={`${type.charAt(0).toUpperCase() + type.slice(1)} Spot Price`}
                     value={isPriceLoading ? "..." : `$${priceData.price.toFixed(2)}`}
-                    subValue={"Market Data Sourced via AI"}
+                    subValue={"Powered by gold-api.com"}
                     icon={
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -401,6 +405,12 @@ const App: React.FC = () => {
                                   {sortConfig?.key === 'totalOz' && (sortConfig.direction === 'ascending' ? '▲' : '▼')}
                                 </button>
                               </th>
+                              <th className="px-6 py-3 text-right">
+                                <button onClick={() => requestSort('currentValue')} className="flex items-center gap-1 ml-auto">
+                                  Value
+                                  {sortConfig?.key === 'currentValue' && (sortConfig.direction === 'ascending' ? '▲' : '▼')}
+                                </button>
+                              </th>
                               <th className="px-6 py-3"></th>
                             </tr>
                           </thead>
@@ -424,10 +434,13 @@ const App: React.FC = () => {
                                 {item.quantity}
                               </td>
                               <td className="px-6 py-4 text-right text-slate-600 dark:text-slate-400 font-medium tabular-nums">
-                                {item.ozPerUnit} oz
+                                {item.ozPerUnit.toFixed(2)} oz
                               </td>
                               <td className="px-6 py-4 text-right font-black text-slate-900 dark:text-white tabular-nums">
                                 {item.totalOz.toFixed(2)} oz
+                              </td>
+                              <td className="px-6 py-4 text-right font-black text-slate-900 dark:text-white tabular-nums">
+                                ${item.currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                               <td className="px-6 py-4 text-right">
                                 <button
@@ -526,42 +539,6 @@ const App: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                </div>
-
-                <div className="bg-slate-900 dark:bg-slate-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden transition-colors">
-                  <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                    </svg>
-                  </div>
-                  <h3 className="font-bold text-lg mb-2 relative z-10">Market Sources</h3>
-                  <p className="text-xs text-slate-400 mb-6 leading-relaxed relative z-10">
-                    AI-driven spot price updates. Each value is cross-referenced with real-time web results.
-                  </p>
-                  {Object.entries(spotPrices).map(([type, priceData]: [string, SpotPriceData | null]) => (
-                    priceData && priceData.sources.length > 0 && (
-                      <div key={type} className="mb-4">
-                        <h4 className="text-sm font-bold text-slate-300 mb-2 capitalize">{type} Sources</h4>
-                        <div className="space-y-3 relative z-10">
-                          {priceData.sources.map((source, i) => (
-                            <a
-                              key={i}
-                              href={source.uri}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-xs text-slate-300 hover:text-white transition-colors group"
-                            >
-                              <span className="w-1 h-1 bg-slate-600 group-hover:bg-blue-400 rounded-full shrink-0"></span>
-                              <span className="truncate">{source.title}</span>
-                              <svg className="w-3 h-3 opacity-0 group-hover:opacity-100 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  ))}
                 </div>
               </div>
             </div>
